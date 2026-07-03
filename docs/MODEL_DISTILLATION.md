@@ -82,7 +82,7 @@ Response distillation is simple because we do not need access to the teacher mod
 
 The main weakness is that the student can inherit the teacher’s mistakes, quirks, formatting habits, verbosity, and hallucinations. If the teacher produces bad SQL and we train on it directly, we are teaching the student bad SQL, so teacher outputs should be filtered and validated before training.
 
-### 2.1.1 How Logits and Softmax Are Used in Response Distillation
+#### 2.1.1 How Logits and Softmax Are Used in Response Distillation
 
 In response distillation, the teacher still uses logits and softmax internally when generating the response.
 
@@ -142,38 +142,148 @@ input + "SELECT name FROM users"   → predict "WHERE"
 
 At each step, the student produces its own logits and softmax distribution. The loss function compares the student’s predicted distribution against the correct next token from the teacher-generated response.
 
-## 2.2 Logit Distillation 
+### 2.2 Logit Distillation 
 
 Another common method is the **logit distillation**. Instead of only copying the teacher's final answer, the student learns from the teacher's probability distribution over possible outputs.
 
 These soft targets contain more information than hard labels because they show not only what answer the teacher chose, but also which alternatives it considered plausible. 
 
-### 2.2.1 How Logit values are used in Logit Distillation
+#### 2.2.1 How Logit values are used in Logit Distillation
 
 **Contrary to the name, in logit distillation the softmax values, rather than raw logits**
 
 The student also produces logits, which are passed through softmax, and then the training loss compares the teacher’s distribution with the student’s distribution, usually using **KL divergence** or cross-entropy.
 
-## 2.3 Feature Distillation
+### 2.3 Feature Distillation
 
 Much stronger variant of distillation: **The student is trained to match some of the teacher's internal representations, not just the final output**. This method is more common when both student and the teacher architectures are accessible compatible. It can be powerful, but it is harder to apply with closed-source teacher models because their internal activations are not available.
+
+#### 2.3.1 Loss
 
 When a model processes an input, it doesn't immediately jump from text to answer. The input first passes through embedding layers and transformer layers. Each layer produces hidden representations, aka **features** or **hidden states**. These states are simply vector representations of what the model has learned about the input at that point.
 
 The same input is passed through both teacher and the student model. Then both models produce their own hidden states and eventually these hidden states are compared and added as extra training loss.
 
 `total loss = output loss + feature matching loss`
+OR
+`loss = CE(student_logits, true_tokens) + KL(student_logits, teacher_logits)`
+WHERE
+`CE = normal language modeling loss
+`KL = distillation loss between teacher and student output distributions`
 
-So the student is still trained to generate the correct final answer, but it is also pushed to build internal representation similar to the teacher's.
+#### 2.3.2 Layer Mismatch
+
+Layer mismatch is basically the awkward part of feature distillation. The teacher may have more layers, wider layers, different attention layout, different normalization style, maybe even a different architecture. So the question becomes **which student hidden state should be compared to which teacher hidden state?**
+
+##### 2.3.2.1 Proportional/Uniform layer Mapping
+
+Suppose: 
+
+```
+teacher: 32 layers
+student: 8 layers
+```
+
+Then we map student layers to evenly spaced teacher layers:
+
+```
+student layer 1 → teacher layer 4
+student layer 2 → teacher layer 8
+student layer 3 → teacher layer 12
+student layer 4 → teacher layer 16
+student layer 5 → teacher layer 20
+student layer 6 → teacher layer 24
+student layer 7 → teacher layer 28
+student layer 8 → teacher layer 32
+```
+
+This assumes the student’s layer 1 should roughly correspond to the teacher being 1/4 through its computation, student layer 2 to teacher being 2/4 through, and so on. This is probably the most intuitive mapping.
+
+**But there is important detail**: transformer layers are not individually "the same concept" across different-depth models. Teacher layer 12 is not necessarily doing one clear operation that student layer 3 must imitate. The mapping is mostly a training scaffold. It says "at this depth, try to be in similar representational region as the teacher".
+
+##### 2.3.2.2 Uneven Ratios
+
+For uneven ratios, we usually do **interpolation-style mapping**, example:
+
+```
+teacher: 24 layers
+student: 10 layers
+```
+
+We can map by relative depth:
+
+```
+teacher_layer = round(student_layer * 24 / 10)
+```
+
+So approximately:
+
+```
+student 1  → teacher 2
+student 2  → teacher 5
+student 3  → teacher 7
+student 4  → teacher 10
+student 5  → teacher 12
+student 6  → teacher 14
+student 7  → teacher 17
+student 8  → teacher 19
+student 9  → teacher 22
+student 10 → teacher 24
+```
+
+*Sometimes people use floor/ceil, instead of round. The exact choice is usually less important than being consistent and stable*
+
+##### 2.3.2.3 Last-layer-only feature matching
+
+This compares only the final hidden state:
+
+```
+student final hidden → teacher final hidden
+```
+
+This avoids the messy question of intermediate layer alignment. It is simpler, but gives weaker guidance.
+
+##### 2.3.2.4 Many-teacher-to-one-student mapping
+
+Lets one student layer match some combination of multiple teacher layers. For example, student layer 3 might be trained against teacher layers 9, 10, 11 and 12, either by averaging them or by using a learned weighted mixture.
+
+Conceptually:
+
+```
+target = weighted_sum(teacher_layer_9, teacher_layer_10, teacher_layer_11, teacher_layer_12)
+loss = MSE(project(student_layer_3), target)
+```
+
+This is useful because one student layer may need to compress what several teacher layers do.
+
+##### 2.3.2.5 Learned Layer Mapping
+
+This is more flexible, instead of hard-coding that student layer 3 maps to teacher layer 12, you let the model learn a weighted combination of teacher layers. For each student layer, you learn weights over teacher layers:
+
+```
+teacher_target_for_student_i =
+  w1 * teacher_layer_1
+  + w2 * teacher_layer_2
+  + ...
+  + w32 * teacher_layer_32
+```
+
+Usually those weights are normalized with softmax. This lets the training process discover which teacher depths are useful for each student depth.
+
+Tradeoff being that it adds complexity and can become unstable or expensive if done carelessly.
 
 
+## 3. About my project
 
+Probably for my `nosql` LLM I will use response distillation, since it's cheap, straightforward and matches the task directly.
 
+Final thing we care about at the end is anyways the `schema + question -> valid SQL` and response distillation trains exactly this. 
 
+Tho worth noting that feature distillation is also possible and interesting. I could use open Qwen model as a teacher but this is slightly more complex.
 
+As for the logit distillation, in theory it is way better than feature distillation, BUT logit distillation has annoying practical costs. For every training token, I need teacher logits over that vocabulary. For LLMs that is huge:
 
+`batch × sequence_length × vocab_size`
 
-
-
-
+Assume vocab is 150k and sequence length is large because schemas are long, storing or computing teacher logits becomes expensive fast.
 
