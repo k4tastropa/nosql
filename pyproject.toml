@@ -6,7 +6,7 @@ readme = "readme.md"
 authors = [
     { name = "kata", email = "contact@k4ta.dev" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "rich>=15.0.0",
     "typer>=0.26.8",
