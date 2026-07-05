@@ -35,8 +35,7 @@
               "title": "LARGE_LANGUAGE_MODELS"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -199,9 +198,9 @@
       "bases:Create new base": false
     }
   },
-  "active": "9cca42ac7a3afd7e",
+  "active": "f583a7265640e794",
   "lastOpenFiles": [
-    "MODEL_DISTILLATION.md",
-    "LARGE_LANGUAGE_MODELS.md"
+    "LARGE_LANGUAGE_MODELS.md",
+    "MODEL_DISTILLATION.md"
   ]
 }

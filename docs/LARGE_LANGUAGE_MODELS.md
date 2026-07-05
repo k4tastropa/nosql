@@ -386,3 +386,70 @@ the improved "it" vector can again interact with other tokens
 ```
 
 This alternating process is why transformers can build complex representations over many layers. Attention moves information between tokens. The MLP processes that information inside each token. Then the next attention layer works with the improved representations.
+
+### 2.3 Final layer
+
+Final transformer block outputs a final hidden vector for each token position. Then a separate output projection layer, often called the language modeling head or LM head, turns that hidden vector into the logits.
+
+```
+input tokens
+    ↓
+embeddings
+    ↓
+transformer blocks
+    ↓
+final hidden states
+    ↓
+take hidden state at prediction position
+    ↓
+LM head / output projection
+    ↓
+logits over vocabulary
+    ↓
+softmax
+    ↓
+probability-like distribution over next tokens
+```
+
+*Logits are explained in the MODEL_DISTILLATION.md*
+
+For a decoder-style LLM generating the next token, the most important vector is usually the final hidden state of the last token position. That vector is the model’s compressed representation of the whole context up to that point.
+
+The model then passes this final hidden vector through the output head, which produces logits. These logits are raw scores over the vocabulary. They are then normalized with softmax, described in `MODEL_DISTILLATION.md`, to produce a pseudo-probabilistic distribution over what the model considers likely to come next.
+
+## 3. Loss and Backpropagation
+
+After the model produces its prediction, training needs a way to measure whether that prediction was good or bad. This is where loss and backpropagation come in.
+
+Loss measures the prediction error. Backpropagation uses that error to calculate how the model’s weights should change. Together, they are the feedback mechanism that turns repeated wrong predictions into gradually better ones.
+
+### 3.1 Loss
+
+Simply put, **loss is the number that tells the model how wrong its prediction was.**
+
+During training, the model is not just generating freely. It is given text from a dataset where the correct next token is already known. The model produces a probability-like distribution over possible next tokens, then the loss function checks how much probability the model assigned to the correct one.
+
+```
+loss = how surprised the model was by the correct next token
+```
+
+For LLM training, the standard loss is usually **cross-entropy loss**:
+
+$$  
+L = -\log(p_{\text{correct}})  
+$$
+  
+Where:  
+  
+- $L$ is the loss  
+- $p_{\text{correct}}$ is the probability the model assigned to the correct next token  
+  
+If the model assigns high probability to the correct token, the loss is low. If it assigns low probability to the correct token, the loss is high.
+
+### 3.2 Backpropagation
+
+This is the step after the loss. Loss gives the model a number saying how wrong the prediction was. **Backpropagation figures out which weights contributed to that error and how each weight should change**.
+
+We can safely say that this is the *learning* part of the neural network.
+
+Backpropagation does not directly “know” language. It only follows the mathematical path from the loss back through every operation that produced the prediction.
