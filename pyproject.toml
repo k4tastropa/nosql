@@ -1,0 +1,17 @@
+[project]
+name = "nosql"
+version = "0.1.0"
+description = "tiny text-to-sql LLM"
+readme = "readme.md"
+authors = [
+    { name = "kata", email = "contact@k4ta.dev" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+nosql = "nosql:main"
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
