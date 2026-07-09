@@ -23,3 +23,23 @@ Expected data layout:
 $NOSQL_DATA_DIR/raw/spider/spider_data
 $NOSQL_DATA_DIR/processed/spider
 ```
+
+## Docker
+
+Build:
+
+```bash
+docker build -t nosql:dev .
+```
+
+Run Spider prepare:
+
+```bash
+docker run --rm -it -v /mnt/nosql/data:/mnt/nosql/data -e NOSQL_DATA_DIR=/mnt/nosql/data nosql:dev uv run nosql spider prepare
+```
+
+Run SFT build:
+
+```bash
+docker run --rm -it -v /mnt/nosql/data:/mnt/nosql/data -e NOSQL_DATA_DIR=/mnt/nosql/data nosql:dev uv run nosql spider build-sft
+```
