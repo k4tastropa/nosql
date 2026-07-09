@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 PROCESSED_DIR = Path("/mnt/nosql/data/processed/spider")
+FAILURES_PATH = PROCESSED_DIR / "sql_failures.jsonl"
 
 
 def iter_jsonl(path: Path):
@@ -15,8 +16,8 @@ def iter_jsonl(path: Path):
                 yield line_number, json.loads(line)
 
 
-def check_file(path: Path) -> int:
-    failures = 0
+def check_file(path: Path) -> tuple[int, int, list[dict]]:
+    failures = []
     checked = 0
 
     for line_number, row in iter_jsonl(path):
@@ -29,24 +30,46 @@ def check_file(path: Path) -> int:
             with sqlite3.connect(db_path) as conn:
                 conn.execute(sql).fetchall()
         except Exception as exc:
-            failures += 1
-            #print(f"{path.name}:{line_number} {row['id']} failed")
-            #print(f"db: {db_path}")
-            #print(f"sql: {sql}")
-            #print(f"error: {exc}")
-            #print()
+            failures.append(
+                {
+                    "file": path.name,
+                    "line": line_number,
+                    "id": row["id"],
+                    "split": row["split"],
+                    "db_id": row["db_id"],
+                    "db_path": str(db_path),
+                    "question": row["question"],
+                    "sql": sql,
+                    "error": str(exc),
+                }
+            )
 
-    # print(f"{path.name}: checked={checked}, failures={failures}")
-    return failures
+    print(f"{path.name}: checked={checked}, failures={len(failures)}")
+    return checked, len(failures), failures
+
+
+def write_failures(path: Path, failures: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as f:
+        for failure in failures:
+            f.write(json.dumps(failure, ensure_ascii=False) + "\n")
 
 
 def main() -> None:
-    failures = 0
-    failures += check_file(PROCESSED_DIR / "train.jsonl")
-    failures += check_file(PROCESSED_DIR / "dev.jsonl")
+    all_failures = []
 
-    if failures:
-        print(f"SQL check completed with {failures} failures")
+    _, _, train_failures = check_file(PROCESSED_DIR / "train.jsonl")
+    _, _, dev_failures = check_file(PROCESSED_DIR / "dev.jsonl")
+
+    all_failures.extend(train_failures)
+    all_failures.extend(dev_failures)
+
+    write_failures(FAILURES_PATH, all_failures)
+
+    print(f"SQL failure report: {FAILURES_PATH}")
+    print(f"SQL check completed with {len(all_failures)} failures")
+
 
 if __name__ == "__main__":
     main()
