@@ -72,7 +72,6 @@ def build_rows(split: str, examples: list[dict], database_dir: Path, schema_map:
                 "target": example["query"],
                 "sql": example["query"],
                 "db_path": str(db_path),
-                
             }
         )
 
