@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typer
 
-from nosql.spider import build, check_sql, inspect, validate
+from nosql.spider import build, check_sql, inspect, validate, sft
 
 app = typer.Typer(no_args_is_help=True)
 spider_app = typer.Typer(no_args_is_help=True)
@@ -29,6 +29,9 @@ def spider_validate() -> None:
 def spider_check_sql() -> None:
     check_sql.main()
 
+@spider_app.command("build-sft")
+def spider_build_sft() -> None:
+    sft.main()
 
 @spider_app.command("prepare")
 def spider_prepare() -> None:
