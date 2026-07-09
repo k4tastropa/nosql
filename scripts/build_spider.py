@@ -53,6 +53,14 @@ def build_rows(split: str, examples: list[dict], database_dir: Path, schema_map:
         db_id = example["db_id"]
         db_path = database_dir / db_id / f"{db_id}.sqlite"
 
+        input_text = (
+            f"### Schema\n"
+            f"{schema_map[db_id]}\n\n"
+            f"### Question\n"
+            f"{example['question']}\n\n"
+            f"### SQL\n"
+        )
+
         rows.append(
             {
                 "id": f"spider-{split}-{index:06d}",
@@ -60,8 +68,11 @@ def build_rows(split: str, examples: list[dict], database_dir: Path, schema_map:
                 "db_id": db_id,
                 "question": example["question"],
                 "schema": schema_map[db_id],
+                "input": input_text,
+                "target": example["query"],
                 "sql": example["query"],
-                "db_path": str(db_path)
+                "db_path": str(db_path),
+                
             }
         )
 
