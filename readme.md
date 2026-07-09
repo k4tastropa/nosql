@@ -14,9 +14,12 @@ uv run nosql spider prepare
 
 This builds processed JSONL files from the raw Spider dataset, validates the rows, checks gold SQL execution against SQLite databases, and writes a SQL failure report.
 
+By default, the pipeline reads and writes under `/mnt/nosql/data`. Set
+`NOSQL_DATA_DIR` to use another data root.
+
 Expected data layout:
 
 ```bash
-/mnt/nosql/data/raw/spider/spider_data
-/mnt/nosql/data/processed/spider
+$NOSQL_DATA_DIR/raw/spider/spider_data
+$NOSQL_DATA_DIR/processed/spider
 ```

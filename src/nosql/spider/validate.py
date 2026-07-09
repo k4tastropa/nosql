@@ -3,7 +3,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-PROCESSED_DIR = Path("/mnt/nosql/data/processed/spider")
+from nosql.spider.paths import get_spider_paths
+
+
+REQUIRED_KEYS = (
+    "id",
+    "split",
+    "db_id",
+    "question",
+    "schema",
+    "input",
+    "target",
+    "sql",
+    "db_path",
+)
+
 
 def iter_jsonl(path: Path):
     with path.open("r", encoding="utf-8") as f:
@@ -21,7 +35,7 @@ def validate_file(path: Path) -> int:
     for line_number, row in iter_jsonl(path):
         rows += 1
 
-        for key in ["id", "split", "db_id", "question", "schema", "input", "target", "sql", "db_path"]:
+        for key in REQUIRED_KEYS:
             if key not in row:
                 print(f"{path.name}:{line_number} missing key: {key}")
                 errors += 1
@@ -44,9 +58,10 @@ def validate_file(path: Path) -> int:
 
 
 def main() -> None:
+    paths = get_spider_paths()
     total_errors = 0
-    total_errors += validate_file(PROCESSED_DIR / "train.jsonl")
-    total_errors += validate_file(PROCESSED_DIR / "dev.jsonl")
+    total_errors += validate_file(paths.train_jsonl)
+    total_errors += validate_file(paths.dev_jsonl)
 
     if total_errors:
         raise SystemExit(1)
@@ -54,4 +69,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-            

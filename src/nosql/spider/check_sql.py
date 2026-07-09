@@ -4,9 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-
-PROCESSED_DIR = Path("/mnt/nosql/data/processed/spider")
-FAILURES_PATH = PROCESSED_DIR / "sql_failures.jsonl"
+from nosql.spider.paths import get_spider_paths
 
 
 def iter_jsonl(path: Path):
@@ -57,17 +55,18 @@ def write_failures(path: Path, failures: list[dict]) -> None:
 
 
 def main() -> None:
+    paths = get_spider_paths()
     all_failures = []
 
-    _, _, train_failures = check_file(PROCESSED_DIR / "train.jsonl")
-    _, _, dev_failures = check_file(PROCESSED_DIR / "dev.jsonl")
+    _, _, train_failures = check_file(paths.train_jsonl)
+    _, _, dev_failures = check_file(paths.dev_jsonl)
 
     all_failures.extend(train_failures)
     all_failures.extend(dev_failures)
 
-    write_failures(FAILURES_PATH, all_failures)
+    write_failures(paths.sql_failures, all_failures)
 
-    print(f"SQL failure report: {FAILURES_PATH}")
+    print(f"SQL failure report: {paths.sql_failures}")
     print(f"SQL check completed with {len(all_failures)} failures")
 
 
